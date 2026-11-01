@@ -26,22 +26,50 @@ st.markdown(
 st.title("Health Insurance Cost Predictor")
 
 
-age = st.number_input("Age", min_value=0, max_value=100, value=30)
-sex = st.selectbox("Sex (0: Female, 1: Male)", [0, 1])
-bmi = st.number_input("BMI", min_value=0.0, max_value=100.0, value=25.0)
+age = st.number_input("Age", min_value=18, max_value=100, value=30)
+sex = st.selectbox("Sex", options=["male", "female"])
+bmi = st.number_input("BMI", min_value=10.0, max_value=50.0, value=25.0, step=0.1)
 children = st.number_input("Number of Children", min_value=0, max_value=10, value=0)
-smoker = st.selectbox("Smoker (0: No, 1: Yes)", [0, 1])
-region = st.selectbox("Region (0: Northwest, 1: Northeast, 2: Southwest, 3: Southeast)", [0, 1, 2, 3])  
-
-if st.button("Predict"):
+smoker = st.selectbox("Smoker", options=["yes", "no"])
+region = st.selectbox("Region", options=["northeast", "northwest", "southeast", "southwest"])
+submit_button = st.button("Predict Insurance Cost") 
+if submit_button:
     # Create a DataFrame for the input data
-    input_data = pd.DataFrame([[age, sex, bmi, children, smoker, region]], 
-                              columns=['age', 'sex', 'bmi', 'children', 'smoker', 'region'])
+    input_data = pd.DataFrame({
+        "age": [age],
+        "sex": [sex],
+        "bmi": [bmi],
+        "children": [children],
+        "smoker": [smoker],
+        "region": [region]
+    })
+
+    # One-hot encode categorical variables
+    input_data_encoded = pd.get_dummies(
+        input_data,
+        columns=["sex", "smoker", "region"],
+        drop_first=True,
+        dtype=int,
+    )
+
+    # Ensure all expected columns are present
+    expected_columns = ['age', 'bmi', 'children', 'sex_male', 'smoker_yes', 
+                        'region_northwest', 'region_southeast', 'region_southwest']
     
-    # Scale the input data
-    scaled_data = scaler.transform(input_data)
-    
+    for col in expected_columns:
+        if col not in input_data_encoded.columns:
+            input_data_encoded[col] = 0
+
+    # Reorder columns to match the training data
+    input_data_encoded = input_data_encoded[expected_columns]
+
+    # Scale only the numeric columns used to fit the scaler
+    numeric_columns = ["age", "bmi", "children"]
+    input_data_encoded[numeric_columns] = scaler.transform(
+        input_data_encoded[numeric_columns]
+    )
+
     # Make prediction
-    prediction = model.predict(scaled_data)
-    
-    st.success(f"Predicted Insurance Cost: ${prediction[0]:.2f}")
+    prediction = model.predict(input_data_encoded)
+
+    st.success(f"Estimated Insurance Cost: ${prediction[0]:,.2f}")  
